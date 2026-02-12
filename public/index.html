@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID Smart Wallet - David</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --dark: #1e293b;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--dark);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 1rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .online { background: #dcfce7; color: #166534; }
+
+        .card-view {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-view::after {
+            content: "RFID";
+            position: absolute;
+            right: -10px;
+            bottom: -10px;
+            font-size: 5rem;
+            opacity: 0.1;
+        }
+
+        .label { font-size: 0.8rem; opacity: 0.8; text-transform: uppercase; }
+        .value { font-size: 1.4rem; font-weight: bold; margin-bottom: 1rem; display: block; }
+        .balance-value { font-size: 2.2rem; color: #60a5fa; }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus { border-color: var(--primary); outline: none; }
+
+        button {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        button:hover { background: #1d4ed8; }
+        button:active { transform: scale(0.98); }
+
+        #log {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="status-badge online">● LIVE SYSTEM</div>
+        <h2>Smart Wallet Dashboard</h2>
+    </header>
+
+    <div class="card-view">
+        <span class="label">Detected Card UID</span>
+        <span id="uid" class="value">Waiting for scan...</span>
+        
+        <span class="label">Current Balance</span>
+        <span class="value balance-value">RWF <span id="balance">0</span></span>
+    </div>
+
+    <div class="input-group">
+        <label for="amount">Top-up Amount (RWF)</label>
+        <input type="number" id="amount" placeholder="e.g. 5000">
+    </div>
+
+    <button onclick="sendTopUp()">SEND TOP-UP TO CARD</button>
+
+    <div id="log">Place card on reader to begin</div>
+</div>
+
+<script>
+    // Connect to WebSocket (Automatically uses the VPS IP)
+    const socket = new WebSocket(`ws://${window.location.hostname}:9216`);
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("Update received:", data);
+
+        // Update the UI instantly
+        document.getElementById('uid').innerText = data.uid;
+        document.getElementById('balance').innerText = data.balance.toLocaleString();
+        document.getElementById('log').innerText = "Last Updated: " + new Date().toLocaleTimeString();
+        
+        // Visual feedback
+        const card = document.querySelector('.card-view');
+        card.style.transform = "scale(1.02)";
+        setTimeout(() => card.style.transform = "scale(1)", 100);
+    };
+
+    async function sendTopUp() {
+        const uid = document.getElementById('uid').innerText;
+        const amount = document.getElementById('amount').value;
+
+        if (uid.includes("Waiting")) {
+            alert("Please scan a card first!");
+            return;
+        }
+
+        if (!amount || amount <= 0) {
+            alert("Please enter a valid amount");
+            return;
+        }
+
+        const response = await fetch('/topup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid, amount })
+        });
+
+        const result = await response.json();
+        document.getElementById('log').innerText = "Command Sent! Hold card to reader...";
+    }
+
+    socket.onclose = () => {
+        document.querySelector('.status-badge').innerText = "○ OFFLINE";
+        document.querySelector('.status-badge').style.background = "#fee2e2";
+        document.querySelector('.status-badge').style.color = "#991b1b";
+    };
+</script>
+
+</body>
+</html>
