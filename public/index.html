@@ -143,9 +143,10 @@
 <script>
     // Connect to WebSocket (Automatically uses the VPS IP)
     const socket = new WebSocket(`ws://${window.location.hostname}:9216`);
-
+    var old_amount = 0;
     socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        old_amount = data.balance;
         console.log("Update received:", data);
 
         // Update the UI instantly
@@ -161,7 +162,7 @@
 
     async function sendTopUp() {
         const uid = document.getElementById('uid').innerText;
-        const amount = document.getElementById('amount').value;
+        const amount = Number(document.getElementById('amount').value) + old_amount;
 
         if (uid.includes("Waiting")) {
             alert("Please scan a card first!");
@@ -176,7 +177,7 @@
         const response = await fetch('/topup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid, amount })
+            body: JSON.stringify({ uid,  amount})
         });
 
         const result = await response.json();
